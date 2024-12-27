@@ -1,48 +1,41 @@
 #!/bin/bash
 
 # ============================
-# Docker & Docker Compose 설치 스크립트
-# 아키텍처에 따라 자동으로 설치
+# Ubuntu Docker & Docker Compose 설치 스크립트
 # ============================
 
-# 1. 시스템 아키텍처 확인
+# 1. 시스템 정보 확인
 ARCH=$(uname -m)
-
 echo "🛠️  시스템 아키텍처: $ARCH"
 
-# 2. 패키지 매니저 업데이트
-echo "🔄 패키지 업데이트..."
-if [ -f /etc/os-release ]; then
-    source /etc/os-release
-    if [[ "$ID" == "amzn" ]]; then
-        sudo yum update -y
-    elif [[ "$ID" == "ubuntu" ]]; then
-        sudo apt update -y
-    else
-        echo "❌ 지원하지 않는 OS입니다: $ID"
-        exit 1
-    fi
-else
-    echo "❌ OS를 확인할 수 없습니다."
-    exit 1
-fi
+# 2. 패키지 매니저 업데이트 및 필수 패키지 설치
+echo "🔄 패키지 업데이트 및 필수 패키지 설치..."
+sudo apt update -y
+sudo apt upgrade -y
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common gnupg lsb-release
 
-# 3. Docker 설치
+# 3. Docker GPG 키 추가 및 레포지토리 설정
+echo "🔑 Docker GPG 키 추가 및 레포지토리 설정..."
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 4. Docker 설치
 echo "🐳 Docker 설치 중..."
-if [[ "$ID" == "amzn" ]]; then
-    sudo yum install -y docker
-    sudo systemctl start docker
-    sudo systemctl enable docker
-elif [[ "$ID" == "ubuntu" ]]; then
-    sudo apt install -y docker.io
-    sudo systemctl start docker
-    sudo systemctl enable docker
-fi
+sudo apt update -y
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Docker 권한 설정
+echo "👤 현재 사용자를 Docker 그룹에 추가..."
 sudo usermod -aG docker $USER
 
-# 4. Docker Compose 설치
+# Docker 서비스 시작 및 자동 시작 활성화
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 5. Docker Compose 설치
 echo "🐙 Docker Compose 설치 중..."
 DOCKER_COMPOSE_VERSION="2.29.0"
 
@@ -58,14 +51,14 @@ fi
 sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-# 5. 설치 확인
+# 6. 설치 확인
 echo "✅ Docker 버전 확인:"
 docker --version
 
 echo "✅ Docker Compose 버전 확인:"
 docker-compose --version
 
-# 6. Docker 서비스 자동 시작 설정
+# 7. Docker 서비스 자동 시작 설정
 sudo systemctl enable docker
 
 echo "🎉 Docker와 Docker Compose 설치가 완료되었습니다!"
